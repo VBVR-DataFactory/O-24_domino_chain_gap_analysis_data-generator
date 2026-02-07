@@ -52,12 +52,12 @@ class TaskConfig(GenerationConfig):
 
     # Domino dimensions (side view) - scaled for 1024x1024
     domino_width: int = Field(
-        default=20,
+        default=40,
         description="Width of each domino in pixels"
     )
 
     domino_height: int = Field(
-        default=90,
+        default=140,
         description="Height of each domino in pixels"
     )
 
@@ -74,22 +74,22 @@ class TaskConfig(GenerationConfig):
 
     # Spacing parameters - scaled for 1024x1024
     normal_spacing_min: int = Field(
-        default=38,
+        default=60,
         description="Minimum normal spacing between dominos"
     )
 
     normal_spacing_max: int = Field(
-        default=56,
+        default=90,
         description="Maximum normal spacing between dominos"
     )
 
     gap_spacing_min: int = Field(
-        default=115,
+        default=180,
         description="Minimum gap spacing (too far)"
     )
 
     gap_spacing_max: int = Field(
-        default=150,
+        default=240,
         description="Maximum gap spacing (too far)"
     )
 
@@ -101,12 +101,12 @@ class TaskConfig(GenerationConfig):
 
     # Visual settings - adjusted for 1024x1024 (centered vertically)
     ground_y: int = Field(
-        default=650,
+        default=700,
         description="Y position of ground line"
     )
 
     margin_left: int = Field(
-        default=100,
+        default=120,
         description="Left margin for first domino"
     )
 
