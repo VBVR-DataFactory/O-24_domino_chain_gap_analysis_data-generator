@@ -341,7 +341,7 @@ class TaskGenerator(BaseGenerator):
         draw.line([(x1, y), (x2, y)], fill=self.config.gap_indicator_color, width=2)
 
         # Draw "TOO FAR!" text
-        font = self._get_font(22)
+        font = self._get_font(28)
         text = "TOO FAR!"
         bbox = draw.textbbox((0, 0), text, font=font)
         text_w = bbox[2] - bbox[0]
@@ -367,7 +367,7 @@ class TaskGenerator(BaseGenerator):
 
     def _draw_title(self, draw: ImageDraw.Draw, text: str) -> None:
         """Draw title text at top of image."""
-        font = self._get_font(32)
+        font = self._get_font(42)
         bbox = draw.textbbox((0, 0), text, font=font)
         text_w = bbox[2] - bbox[0]
         x = (self.config.image_size[0] - text_w) // 2
