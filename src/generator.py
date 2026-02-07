@@ -44,8 +44,15 @@ class TaskGenerator(BaseGenerator):
     def generate_task_pair(self, task_id: str) -> TaskPair:
         """Generate one domino chain gap analysis task."""
 
-        # Generate domino chain data
+        # Generate domino chain data with randomized visual properties
         task_data = self._generate_chain_data()
+        
+        # Randomize visual properties for scaling
+        visual_props = self._randomize_visual_properties()
+        task_data['visual_props'] = visual_props
+        
+        # Finalize chain data with positions
+        task_data = self._finalize_chain_data(task_data)
 
         # Render images
         first_image = self._render_initial_state(task_data)
@@ -72,6 +79,30 @@ class TaskGenerator(BaseGenerator):
     #  CHAIN GENERATION
     # ══════════════════════════════════════════════════════════════════════════
 
+    def _randomize_visual_properties(self) -> dict:
+        """Randomize visual properties for scaling."""
+        return {
+            # Color randomization
+            'domino_color': random.choice(self.config.DOMINO_COLORS),
+            'fallen_domino_color': (231, 76, 60),  # Fixed red color for fallen dominos
+            'background_color': (255, 255, 255),  # Fixed white background
+            'ground_color': random.choice(self.config.GROUND_COLORS),
+            
+            # Size randomization (±12.5% variation)
+            'domino_width': random.randint(35, 45),
+            'domino_height': random.randint(130, 150),
+            
+            # Layout randomization
+            'margin_left': random.randint(150, 200),  # Increased to ensure PUSH arrow is in scene
+            'ground_y': random.randint(650, 750),
+            
+            # Spacing randomization (slightly wider ranges)
+            'normal_spacing_min': random.randint(55, 65),
+            'normal_spacing_max': random.randint(85, 95),
+            'gap_spacing_min': random.randint(170, 190),
+            'gap_spacing_max': random.randint(230, 250),
+        }
+
     def _generate_chain_data(self) -> dict:
         """Generate domino chain with one gap."""
         # Random number of dominos
@@ -81,26 +112,38 @@ class TaskGenerator(BaseGenerator):
         # Gap is AFTER this domino index (0-indexed)
         gap_after = random.randint(1, num_dominos - 3)
 
+        # Note: Spacing generation will be done in a second pass after visual_props are available
+        return {
+            "num_dominos": num_dominos,
+            "gap_after": gap_after,  # 0-indexed
+        }
+    
+    def _finalize_chain_data(self, task_data: dict) -> dict:
+        """Finalize chain data with positions based on visual properties."""
+        visual_props = task_data['visual_props']
+        num_dominos = task_data['num_dominos']
+        gap_after = task_data['gap_after']
+        
         # Generate spacings
         spacings = []
         for i in range(num_dominos - 1):
             if i == gap_after:
                 # This is the gap - too far
                 spacing = random.randint(
-                    self.config.gap_spacing_min,
-                    self.config.gap_spacing_max
+                    visual_props['gap_spacing_min'],
+                    visual_props['gap_spacing_max']
                 )
             else:
                 # Normal spacing
                 spacing = random.randint(
-                    self.config.normal_spacing_min,
-                    self.config.normal_spacing_max
+                    visual_props['normal_spacing_min'],
+                    visual_props['normal_spacing_max']
                 )
             spacings.append(spacing)
 
         # Calculate x positions
         positions = []
-        x = self.config.margin_left
+        x = visual_props['margin_left']
         for i in range(num_dominos):
             positions.append(x)
             if i < len(spacings):
@@ -111,14 +154,14 @@ class TaskGenerator(BaseGenerator):
         last_fallen_index = gap_after  # 0-indexed
         answer = last_fallen_index + 1  # 1-indexed for display
 
-        return {
-            "num_dominos": num_dominos,
+        task_data.update({
             "positions": positions,
             "spacings": spacings,
-            "gap_after": gap_after,  # 0-indexed
             "answer": answer,  # 1-indexed (domino number)
             "last_fallen_index": last_fallen_index,  # 0-indexed
-        }
+        })
+        
+        return task_data
 
     # ══════════════════════════════════════════════════════════════════════════
     #  RENDERING
@@ -126,19 +169,20 @@ class TaskGenerator(BaseGenerator):
 
     def _render_initial_state(self, task_data: dict) -> Image.Image:
         """Render initial state with all dominos standing."""
-        img = Image.new('RGB', self.config.image_size, self.config.background_color)
+        visual_props = task_data['visual_props']
+        img = Image.new('RGB', self.config.image_size, visual_props['background_color'])
         draw = ImageDraw.Draw(img)
 
         # Draw ground
-        self._draw_ground(draw)
+        self._draw_ground(draw, visual_props)
 
         # Draw all dominos standing
         for i in range(task_data["num_dominos"]):
             x = task_data["positions"][i]
-            self._draw_domino_standing(draw, x, i + 1, self.config.domino_color)
+            self._draw_domino_standing(draw, x, i + 1, visual_props['domino_color'], visual_props)
 
         # Draw "PUSH" arrow at first domino
-        self._draw_push_indicator(draw, task_data["positions"][0])
+        self._draw_push_indicator(draw, task_data["positions"][0], visual_props)
 
         # Draw "?" question marker
         self._draw_question_marker(draw)
@@ -150,57 +194,59 @@ class TaskGenerator(BaseGenerator):
 
     def _render_final_state(self, task_data: dict) -> Image.Image:
         """Render final state with fallen and standing dominos."""
-        img = Image.new('RGB', self.config.image_size, self.config.background_color)
+        visual_props = task_data['visual_props']
+        img = Image.new('RGB', self.config.image_size, visual_props['background_color'])
         draw = ImageDraw.Draw(img)
 
         # Draw ground
-        self._draw_ground(draw)
+        self._draw_ground(draw, visual_props)
 
         # Draw dominos - fallen up to and including last_fallen_index, rest standing
         for i in range(task_data["num_dominos"]):
             x = task_data["positions"][i]
             if i <= task_data["last_fallen_index"]:
                 # Fallen domino
-                self._draw_domino_fallen(draw, x, i + 1, self.config.fallen_domino_color)
+                self._draw_domino_fallen(draw, x, i + 1, visual_props['fallen_domino_color'], visual_props)
             else:
                 # Standing domino
-                self._draw_domino_standing(draw, x, i + 1, self.config.domino_color)
+                self._draw_domino_standing(draw, x, i + 1, visual_props['domino_color'], visual_props)
 
         # Draw gap indicator
         gap_x1 = task_data["positions"][task_data["gap_after"]]
         gap_x2 = task_data["positions"][task_data["gap_after"] + 1]
-        self._draw_gap_indicator(draw, gap_x1, gap_x2)
+        self._draw_gap_indicator(draw, gap_x1, gap_x2, visual_props)
 
         # Circle the last fallen domino
         last_x = task_data["positions"][task_data["last_fallen_index"]]
-        self._draw_answer_circle(draw, last_x, task_data["answer"])
+        self._draw_answer_circle(draw, last_x, task_data["answer"], visual_props)
 
         # Draw answer title
         self._draw_title(draw, f"Chain stopped at Domino #{task_data['answer']}")
 
         return img
 
-    def _draw_ground(self, draw: ImageDraw.Draw) -> None:
+    def _draw_ground(self, draw: ImageDraw.Draw, visual_props: dict) -> None:
         """Draw ground line."""
-        y = self.config.ground_y
+        y = visual_props['ground_y']
         width = self.config.image_size[0]
-        draw.line([(0, y), (width, y)], fill=self.config.ground_color, width=4)
+        draw.line([(0, y), (width, y)], fill=visual_props['ground_color'], width=4)
 
         # Draw some texture lines
         for i in range(0, width, 40):
-            draw.line([(i, y + 2), (i + 20, y + 2)], fill=self.config.ground_color, width=2)
+            draw.line([(i, y + 2), (i + 20, y + 2)], fill=visual_props['ground_color'], width=2)
 
     def _draw_domino_standing(
         self,
         draw: ImageDraw.Draw,
         x: int,
         number: int,
-        color: Tuple[int, int, int]
+        color: Tuple[int, int, int],
+        visual_props: dict
     ) -> None:
         """Draw a standing domino at position x."""
-        w = self.config.domino_width
-        h = self.config.domino_height
-        ground_y = self.config.ground_y
+        w = visual_props['domino_width']
+        h = visual_props['domino_height']
+        ground_y = visual_props['ground_y']
 
         # Rectangle from ground up
         left = x - w // 2
@@ -212,7 +258,7 @@ class TaskGenerator(BaseGenerator):
         draw.rectangle([left, top, right, bottom], fill=color, outline=(20, 20, 20), width=2)
 
         # Draw number
-        font = self._get_font(14)
+        font = self._get_font(32)
         text = str(number)
         bbox = draw.textbbox((0, 0), text, font=font)
         text_w = bbox[2] - bbox[0]
@@ -226,12 +272,13 @@ class TaskGenerator(BaseGenerator):
         draw: ImageDraw.Draw,
         x: int,
         number: int,
-        color: Tuple[int, int, int]
+        color: Tuple[int, int, int],
+        visual_props: dict
     ) -> None:
         """Draw a fallen domino (tilted to the right)."""
-        w = self.config.domino_width
-        h = self.config.domino_height
-        ground_y = self.config.ground_y
+        w = visual_props['domino_width']
+        h = visual_props['domino_height']
+        ground_y = visual_props['ground_y']
 
         # Fallen domino tilted ~75 degrees to the right
         angle = 75  # degrees from vertical
@@ -258,18 +305,31 @@ class TaskGenerator(BaseGenerator):
         # Draw number at center of fallen domino
         center_x = (p1[0] + p2[0] + p3[0] + p4[0]) / 4
         center_y = (p1[1] + p2[1] + p3[1] + p4[1]) / 4
-        font = self._get_font(12)
+        font = self._get_font(28)
         text = str(number)
         bbox = draw.textbbox((0, 0), text, font=font)
         text_w = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
         draw.text((center_x - text_w // 2, center_y - text_h // 2), text, fill=(255, 255, 255), font=font)
 
-    def _draw_push_indicator(self, draw: ImageDraw.Draw, x: int) -> None:
+    def _draw_push_indicator(self, draw: ImageDraw.Draw, x: int, visual_props: dict) -> None:
         """Draw PUSH arrow pointing at first domino."""
-        arrow_y = self.config.ground_y - self.config.domino_height - 40
-        arrow_start_x = x - 60
-        arrow_end_x = x - self.config.domino_width // 2 - 5
+        arrow_y = visual_props['ground_y'] - visual_props['domino_height'] - 40
+        arrow_end_x = x - visual_props['domino_width'] // 2 - 5
+        
+        # Calculate PUSH text width to ensure everything fits
+        font = self._get_font(28)
+        text = "PUSH"
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = bbox[2] - bbox[0]
+        
+        # Ensure arrow starts at least 20px from left edge
+        min_arrow_start_x = text_w + 40  # text width + margins
+        arrow_start_x = max(min_arrow_start_x, x - 80)
+        
+        # If arrow would be too short, adjust the arrow_start further left within bounds
+        if arrow_end_x - arrow_start_x < 30:
+            arrow_start_x = max(20 + text_w + 10, arrow_end_x - 50)
 
         # Draw arrow line
         draw.line(
@@ -285,13 +345,10 @@ class TaskGenerator(BaseGenerator):
             (arrow_end_x - 10, arrow_y + 6)
         ], fill=self.config.text_color)
 
-        # Draw "PUSH" text
-        font = self._get_font(16)
-        text = "PUSH"
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_w = bbox[2] - bbox[0]
+        # Draw "PUSH" text - ensure it's within bounds
+        text_x = max(20, arrow_start_x - text_w - 10)
         draw.text(
-            (arrow_start_x - text_w - 10, arrow_y - 10),
+            (text_x, arrow_y - 10),
             text,
             fill=self.config.text_color,
             font=font
@@ -325,9 +382,9 @@ class TaskGenerator(BaseGenerator):
             font=font
         )
 
-    def _draw_gap_indicator(self, draw: ImageDraw.Draw, x1: int, x2: int) -> None:
+    def _draw_gap_indicator(self, draw: ImageDraw.Draw, x1: int, x2: int, visual_props: dict) -> None:
         """Draw TOO FAR indicator between two positions."""
-        y = self.config.ground_y + 25
+        y = visual_props['ground_y'] + 25
 
         # Draw bracket
         bracket_top = y - 5
@@ -353,10 +410,10 @@ class TaskGenerator(BaseGenerator):
             font=font
         )
 
-    def _draw_answer_circle(self, draw: ImageDraw.Draw, x: int, answer: int) -> None:
+    def _draw_answer_circle(self, draw: ImageDraw.Draw, x: int, answer: int, visual_props: dict) -> None:
         """Draw circle around the answer domino."""
         # Circle around the fallen domino area
-        center_y = self.config.ground_y - 20
+        center_y = visual_props['ground_y'] - 20
         radius = 45
 
         draw.ellipse(
@@ -413,9 +470,9 @@ class TaskGenerator(BaseGenerator):
         """Create animation frames for domino chain reaction."""
         frames = []
 
-        # Phase 1: Hold initial state
+        # Phase 1: Hold initial state (reduced for 5-second target)
         initial_frame = self._render_initial_state(task_data)
-        for _ in range(15):
+        for _ in range(10):  # Reduced from 15 to 10
             frames.append(initial_frame)
 
         # Phase 2: Animate each domino falling up to the gap
@@ -428,33 +485,32 @@ class TaskGenerator(BaseGenerator):
                 frame = self._render_animation_frame(task_data, domino_idx, angle)
                 frames.append(frame)
 
-            # Brief pause after each domino falls
-            frames.append(frame)
+            # Brief pause after each domino falls (removed extra pause for speed)
 
         # Phase 3: Show gap measurement / approaching gap
-        # Hold on the last fallen state
+        # Hold on the last fallen state (reduced)
         last_fallen_frame = self._render_animation_frame(
             task_data,
             task_data["last_fallen_index"],
             75,
             show_measurement=True
         )
-        for _ in range(20):
+        for _ in range(12):  # Reduced from 20 to 12
             frames.append(last_fallen_frame)
 
-        # Phase 4: Show "TOO FAR" indicator
+        # Phase 4: Show "TOO FAR" indicator (reduced)
         gap_frame = self._render_animation_frame(
             task_data,
             task_data["last_fallen_index"],
             75,
             show_gap_indicator=True
         )
-        for _ in range(20):
+        for _ in range(12):  # Reduced from 20 to 12
             frames.append(gap_frame)
 
-        # Phase 5: Show final answer
+        # Phase 5: Show final answer (reduced)
         final_frame = self._render_final_state(task_data)
-        for _ in range(30):
+        for _ in range(20):  # Reduced from 30 to 20
             frames.append(final_frame)
 
         return frames
@@ -468,11 +524,12 @@ class TaskGenerator(BaseGenerator):
         show_gap_indicator: bool = False
     ) -> Image.Image:
         """Render a single animation frame."""
-        img = Image.new('RGB', self.config.image_size, self.config.background_color)
+        visual_props = task_data['visual_props']
+        img = Image.new('RGB', self.config.image_size, visual_props['background_color'])
         draw = ImageDraw.Draw(img)
 
         # Draw ground
-        self._draw_ground(draw)
+        self._draw_ground(draw, visual_props)
 
         # Draw dominos
         for i in range(task_data["num_dominos"]):
@@ -480,23 +537,23 @@ class TaskGenerator(BaseGenerator):
 
             if i < falling_up_to:
                 # Already fully fallen
-                self._draw_domino_fallen(draw, x, i + 1, self.config.fallen_domino_color)
+                self._draw_domino_fallen(draw, x, i + 1, visual_props['fallen_domino_color'], visual_props)
             elif i == falling_up_to:
                 # Currently falling - draw at current angle
-                self._draw_domino_at_angle(draw, x, i + 1, current_angle, self.config.fallen_domino_color)
+                self._draw_domino_at_angle(draw, x, i + 1, current_angle, visual_props['fallen_domino_color'], visual_props)
             else:
                 # Still standing
-                self._draw_domino_standing(draw, x, i + 1, self.config.domino_color)
+                self._draw_domino_standing(draw, x, i + 1, visual_props['domino_color'], visual_props)
 
         # Show measurement if requested
         if show_measurement:
-            self._draw_distance_measurement(draw, task_data)
+            self._draw_distance_measurement(draw, task_data, visual_props)
 
         # Show gap indicator if requested
         if show_gap_indicator:
             gap_x1 = task_data["positions"][task_data["gap_after"]]
             gap_x2 = task_data["positions"][task_data["gap_after"] + 1]
-            self._draw_gap_indicator(draw, gap_x1, gap_x2)
+            self._draw_gap_indicator(draw, gap_x1, gap_x2, visual_props)
 
         # Draw title based on state
         if show_gap_indicator:
@@ -514,19 +571,20 @@ class TaskGenerator(BaseGenerator):
         x: int,
         number: int,
         angle: float,
-        color: Tuple[int, int, int]
+        color: Tuple[int, int, int],
+        visual_props: dict
     ) -> None:
         """Draw a domino at a specific angle (0 = standing, 90 = flat)."""
         if angle <= 0:
-            self._draw_domino_standing(draw, x, number, color)
+            self._draw_domino_standing(draw, x, number, color, visual_props)
             return
         if angle >= 75:
-            self._draw_domino_fallen(draw, x, number, color)
+            self._draw_domino_fallen(draw, x, number, color, visual_props)
             return
 
-        w = self.config.domino_width
-        h = self.config.domino_height
-        ground_y = self.config.ground_y
+        w = visual_props['domino_width']
+        h = visual_props['domino_height']
+        ground_y = visual_props['ground_y']
 
         angle_rad = math.radians(angle)
 
@@ -548,14 +606,14 @@ class TaskGenerator(BaseGenerator):
         # Draw number
         center_x = (p1[0] + p2[0] + p3[0] + p4[0]) / 4
         center_y = (p1[1] + p2[1] + p3[1] + p4[1]) / 4
-        font = self._get_font(12)
+        font = self._get_font(28)
         text = str(number)
         bbox = draw.textbbox((0, 0), text, font=font)
         text_w = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
         draw.text((center_x - text_w // 2, center_y - text_h // 2), text, fill=(255, 255, 255), font=font)
 
-    def _draw_distance_measurement(self, draw: ImageDraw.Draw, task_data: dict) -> None:
+    def _draw_distance_measurement(self, draw: ImageDraw.Draw, task_data: dict, visual_props: dict) -> None:
         """Draw distance measurement between last fallen and next domino."""
         gap_idx = task_data["gap_after"]
         x1 = task_data["positions"][gap_idx]
@@ -563,9 +621,9 @@ class TaskGenerator(BaseGenerator):
 
         # For fallen domino, tip is further right
         angle_rad = math.radians(75)
-        tip_x = x1 - self.config.domino_width // 2 + self.config.domino_height * math.sin(angle_rad)
+        tip_x = x1 - visual_props['domino_width'] // 2 + visual_props['domino_height'] * math.sin(angle_rad)
 
-        y = self.config.ground_y - self.config.domino_height // 2
+        y = visual_props['ground_y'] - visual_props['domino_height'] // 2
 
         # Draw measurement line
         draw.line([(tip_x, y), (x2, y)], fill=(255, 165, 0), width=2)

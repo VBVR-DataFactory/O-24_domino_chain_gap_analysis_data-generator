@@ -110,7 +110,89 @@ class TaskConfig(GenerationConfig):
         description="Left margin for first domino"
     )
 
-    # Colors (RGB tuples)
+    # ══════════════════════════════════════════════════════════════════════════
+    #  COLOR POOLS FOR SCALING
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # Standing domino color pool - expanded to 30 colors for better scaling
+    DOMINO_COLORS: list = [
+        # Blues
+        (41, 128, 185),   # Blue
+        (52, 152, 219),   # Light blue
+        (46, 134, 193),   # Medium blue
+        (30, 144, 255),   # Dodger blue
+        (65, 105, 225),   # Royal blue
+        
+        # Greens
+        (46, 204, 113),   # Green
+        (26, 188, 156),   # Teal
+        (22, 160, 133),   # Dark teal
+        (34, 153, 84),    # Medium green
+        (40, 180, 99),    # Light green
+        (16, 172, 132),   # Ocean green
+        
+        # Purples
+        (155, 89, 182),   # Purple
+        (142, 68, 173),   # Dark purple
+        (136, 78, 160),   # Medium purple
+        (165, 105, 189),  # Light purple
+        (147, 51, 234),   # Vivid purple
+        (123, 104, 238),  # Medium slate blue
+        
+        # Oranges/Browns
+        (230, 126, 34),   # Orange
+        (211, 84, 0),     # Dark orange
+        (243, 156, 18),   # Amber
+        (235, 152, 78),   # Light orange
+        (255, 140, 0),    # Dark orange 2
+        
+        # Yellows/Golds
+        (241, 196, 15),   # Yellow
+        (255, 215, 0),    # Gold
+        (218, 165, 32),   # Goldenrod
+        
+        # Pinks/Magentas
+        (219, 10, 91),    # Pink
+        (255, 20, 147),   # Deep pink
+        (199, 21, 133),   # Medium violet red
+        
+        # Cyans
+        (0, 206, 209),    # Dark cyan
+        (64, 224, 208),   # Turquoise
+    ]
+
+    # Fallen domino color pool
+    FALLEN_COLORS: list = [
+        (231, 76, 60),    # Red
+        (230, 126, 34),   # Orange
+        (241, 196, 15),   # Yellow
+        (192, 57, 43),    # Dark red
+        (211, 84, 0),     # Dark orange
+        (243, 156, 18),   # Amber
+        (235, 152, 78),   # Light orange
+    ]
+
+    # Background color pool
+    BACKGROUND_COLORS: list = [
+        (245, 245, 245),  # Light gray
+        (250, 250, 250),  # Almost white
+        (240, 248, 255),  # Alice blue
+        (255, 250, 240),  # Floral white
+        (248, 248, 255),  # Ghost white
+        (245, 255, 250),  # Mint cream
+        (255, 248, 240),  # Seashell
+    ]
+
+    # Ground color pool
+    GROUND_COLORS: list = [
+        (139, 90, 43),    # Brown
+        (160, 82, 45),    # Sienna
+        (101, 67, 33),    # Dark brown
+        (139, 115, 85),   # Tan
+        (118, 85, 43),    # Medium brown
+    ]
+
+    # Colors (RGB tuples) - defaults for backward compatibility
     domino_color: Tuple[int, int, int] = Field(
         default=(41, 128, 185),
         description="Color of standing dominos (blue)"
