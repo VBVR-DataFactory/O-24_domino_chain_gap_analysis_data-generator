@@ -30,7 +30,7 @@ class TaskConfig(GenerationConfig):
     # ══════════════════════════════════════════════════════════════════════════
 
     domain: str = Field(default="domino_chain_gap_analysis")
-    image_size: Tuple[int, int] = Field(default=(800, 400))  # Wider for side view
+    image_size: Tuple[int, int] = Field(default=(1024, 1024))  # Standard 1:1 aspect ratio
 
     # ══════════════════════════════════════════════════════════════════════════
     #  VIDEO SETTINGS
@@ -42,7 +42,7 @@ class TaskConfig(GenerationConfig):
     )
 
     video_fps: int = Field(
-        default=15,
+        default=16,
         description="Video frame rate"
     )
 
@@ -50,14 +50,14 @@ class TaskConfig(GenerationConfig):
     #  DOMINO CHAIN SETTINGS
     # ══════════════════════════════════════════════════════════════════════════
 
-    # Domino dimensions (side view)
+    # Domino dimensions (side view) - scaled for 1024x1024
     domino_width: int = Field(
-        default=16,
+        default=20,
         description="Width of each domino in pixels"
     )
 
     domino_height: int = Field(
-        default=70,
+        default=90,
         description="Height of each domino in pixels"
     )
 
@@ -72,24 +72,24 @@ class TaskConfig(GenerationConfig):
         description="Maximum number of dominos in chain"
     )
 
-    # Spacing parameters
+    # Spacing parameters - scaled for 1024x1024
     normal_spacing_min: int = Field(
-        default=30,
+        default=38,
         description="Minimum normal spacing between dominos"
     )
 
     normal_spacing_max: int = Field(
-        default=45,
+        default=56,
         description="Maximum normal spacing between dominos"
     )
 
     gap_spacing_min: int = Field(
-        default=90,
+        default=115,
         description="Minimum gap spacing (too far)"
     )
 
     gap_spacing_max: int = Field(
-        default=120,
+        default=150,
         description="Maximum gap spacing (too far)"
     )
 
@@ -99,14 +99,14 @@ class TaskConfig(GenerationConfig):
         description="Fraction of domino height that determines max reach"
     )
 
-    # Visual settings
+    # Visual settings - adjusted for 1024x1024 (centered vertically)
     ground_y: int = Field(
-        default=320,
+        default=650,
         description="Y position of ground line"
     )
 
     margin_left: int = Field(
-        default=80,
+        default=100,
         description="Left margin for first domino"
     )
 
