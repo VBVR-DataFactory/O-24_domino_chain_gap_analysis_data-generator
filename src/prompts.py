@@ -13,24 +13,15 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 PROMPT_TEMPLATE = (
-    "Analyze the domino chain and determine which domino is the last to fall. "
-    "{analysis_focus} "
-    "Push the first domino and {animation_desc}."
+    "Analyze the domino chain to find which domino is the last to fall. "
+    "Push the first domino and watch as each domino falls and turns red. "
+    "The chain will stop when it reaches a gap that is too wide. "
+    "This gap will be marked \"TOO FAR!\" in red. "
+    "The last fallen domino will be circled in green as the answer."
 )
 
 PROMPT_PARAMS = {
-    "default": {
-        "analysis_focus": "Look for gaps in the spacing that would stop the chain reaction",
-        "animation_desc": "show the chain reaction stopping at the gap"
-    },
-    "analysis": {
-        "analysis_focus": "One gap is too wide for the chain reaction to continue",
-        "animation_desc": "show exactly where the chain stops, highlighting the problematic gap"
-    },
-    "prediction": {
-        "analysis_focus": "Examine the spacing to predict the stopping point",
-        "animation_desc": "animate the dominos falling until they reach the break point"
-    }
+    "default": {}
 }
 
 
@@ -39,13 +30,12 @@ def get_prompt(task_type: str = "default") -> str:
     Get unified prompt for the given task type.
 
     Args:
-        task_type: Type of task - "default", "analysis", or "prediction"
+        task_type: Type of task - "default"
 
     Returns:
-        Formatted prompt string for the specified type
+        Formatted prompt string
     """
-    params = PROMPT_PARAMS.get(task_type, PROMPT_PARAMS["default"])
-    return PROMPT_TEMPLATE.format(**params)
+    return PROMPT_TEMPLATE
 
 
 def get_all_prompts(task_type: str = "default") -> list[str]:
