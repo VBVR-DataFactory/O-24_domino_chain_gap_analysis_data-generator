@@ -1,217 +1,135 @@
-# Domino Chain Gap Analysis Data Generator 🎯
+# O-24: Domino Chain Gap Analysis Data Generator
 
-A domino chain reasoning task generator for training and evaluating video generation models on spatial and physical reasoning tasks. Based on the template-data-generator framework.
+Generates synthetic physics simulation tasks involving domino chains with gaps. The task is to identify which domino will be the last to fall when the chain reaction encounters a gap that is too wide to cross.
 
-**Task**: Given a chain of dominos with one gap that's too wide, determine which domino is the last to fall before the chain reaction stops.
+Each sample pairs a **task** (first frame + prompt describing what needs to happen) with its **ground truth solution** (final frame showing the result + video demonstrating how to achieve it). This structure enables both model evaluation and training.
 
 ---
 
-## 🚀 Quick Start
+## 📌 Basic Information
+
+| Property | Value |
+|----------|-------|
+| **Task ID** | O-24 |
+| **Task** | Domino Chain Gap Analysis |
+| **Category** | Physics Simulation/Gap Detection |
+| **Resolution** | 1024×1024 px |
+| **FPS** | 16 fps |
+| **Duration** | varies |
+| **Output** | PNG images + MP4 video |
+
+---
+
+## 🚀 Usage
+
+### Installation
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-org/domino-chain-gap-generator.git
-cd domino-chain-gap-generator
+# Clone the repository
+git clone https://github.com/VBVR-DataFactory/O-24_domino_chain_gap_analysis_data-generator.git
+cd O-24_domino_chain_gap_analysis_data-generator
 
-# 2. Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# 3. Install dependencies
-pip install --upgrade pip
+# Install dependencies
 pip install -r requirements.txt
-pip install -e .
-
-# 4. Generate domino chain tasks
-python examples/generate.py --num-samples 50
 ```
 
-### Output
-
-Generated tasks will be saved to `data/questions/domino_task/` with:
-- **first_frame.png**: All dominos standing, "PUSH" arrow on first domino, "?" marker
-- **final_frame.png**: Fallen dominos (red), standing dominos (blue), "TOO FAR!" gap indicator, answer circled
-- **prompt.txt**: Chain analysis instructions
-- **ground_truth.mp4**: Video showing chain reaction stopping at gap (optional)
-
----
-
-## 📁 Structure
-
-```
-domino-chain-gap-generator/
-├── core/                    # ✅ Framework utilities (don't modify)
-│   ├── base_generator.py   # Abstract base class
-│   ├── schemas.py          # Pydantic models
-│   ├── image_utils.py      # Image helpers
-│   ├── video_utils.py      # Video generation
-│   └── output_writer.py    # File output
-├── src/                     # 🎯 Domino-specific implementation
-│   ├── generator.py        # Domino chain generator
-│   ├── prompts.py          # Chain analysis prompts
-│   └── config.py           # Domino configuration
-├── examples/
-│   └── generate.py         # Entry point
-└── data/questions/         # Generated output
-    └── domino_task/
-        └── domino_XXXX/
-            ├── first_frame.png
-            ├── final_frame.png
-            ├── prompt.txt
-            └── ground_truth.mp4
-```
-
----
-
-## 📦 Output Format
-
-Each domino chain task produces:
-
-```
-data/questions/domino_task/domino_XXXX/
-├── first_frame.png          # All dominos standing with PUSH indicator
-├── final_frame.png          # Chain stopped, answer revealed
-├── prompt.txt               # Analysis instructions
-└── ground_truth.mp4         # Chain reaction animation (optional)
-```
-
-### Visual Elements
-
-- **Blue rectangles**: Standing dominos (numbered 1, 2, 3...)
-- **Red rectangles**: Fallen dominos (tilted 75° to the right)
-- **"PUSH" arrow**: Points to first domino (chain start)
-- **Yellow "?" marker**: Indicates the question to solve
-- **"TOO FAR!" indicator**: Highlights the gap that breaks the chain
-- **Green circle**: Marks the answer (last fallen domino)
-
----
-
-## 🎨 Configuration
-
-### Domino Chain Settings
-
-Configure generation in `src/config.py`:
-
-```python
-class TaskConfig(GenerationConfig):
-    # Image dimensions (wider for side view)
-    image_size: tuple[int, int] = Field(default=(800, 400))
-
-    # Domino dimensions
-    domino_width: int = Field(default=16)   # Width in pixels
-    domino_height: int = Field(default=70)  # Height in pixels
-
-    # Chain parameters
-    min_dominos: int = Field(default=7)     # Minimum dominos in chain
-    max_dominos: int = Field(default=12)    # Maximum dominos in chain
-
-    # Spacing parameters
-    normal_spacing_min: int = Field(default=30)   # Valid spacing (min)
-    normal_spacing_max: int = Field(default=45)   # Valid spacing (max)
-    gap_spacing_min: int = Field(default=90)      # Gap spacing (min)
-    gap_spacing_max: int = Field(default=120)     # Gap spacing (max)
-
-    # Physics threshold
-    fall_reach_ratio: float = Field(default=0.9)  # Domino reach = 90% of height
-
-    # Colors
-    domino_color: tuple = Field(default=(41, 128, 185))      # Blue (standing)
-    fallen_domino_color: tuple = Field(default=(231, 76, 60)) # Red (fallen)
-    highlight_color: tuple = Field(default=(46, 204, 113))    # Green (answer)
-    gap_indicator_color: tuple = Field(default=(192, 57, 43)) # Dark red (gap)
-
-    # Video settings
-    generate_videos: bool = Field(default=True)
-    video_fps: int = Field(default=15)
-```
-
-### Command-Line Usage
+### Generate Data
 
 ```bash
-# Basic generation
-python examples/generate.py --num-samples 50
+# Generate 100 samples
+python examples/generate.py --num-samples 100
+
+# Generate with specific seed
+python examples/generate.py --num-samples 100 --seed 42
+
+# Generate without videos
+python examples/generate.py --num-samples 100 --no-videos
 
 # Custom output directory
-python examples/generate.py --num-samples 100 --output data/my_dominos
-
-# Reproducible generation with seed
-python examples/generate.py --num-samples 50 --seed 42
-
-# Without videos (faster)
-python examples/generate.py --num-samples 50 --no-videos
+python examples/generate.py --num-samples 100 --output data/my_output
 ```
 
+### Command-Line Options
+
+| Argument | Type | Description | Default |
+|----------|------|-------------|---------|
+| `--num-samples` | int | Number of samples to generate | 100 |
+| `--seed` | int | Random seed for reproducibility | Random |
+| `--output` | str | Output directory | data |
+| `--no-videos` | flag | Skip video generation | False |
+
 ---
 
-## 🔧 Algorithm
+## 📖 Task Example
 
-### Chain Generation
+### Prompt
 
-1. **Random domino count**: Select N dominos (7-12 by default)
-2. **Gap placement**: Randomly place one gap (not at start or end)
-3. **Spacing assignment**:
-   - Normal positions: 30-45px spacing (dominos can reach)
-   - Gap position: 90-120px spacing (too far to reach)
-4. **Answer calculation**: Domino before the gap = last to fall
-
-### Physics Rule
-
-A domino can knock over the next one if:
 ```
-distance_to_next < domino_height × fall_reach_ratio
+Analyze the domino chain to find which domino is the last to fall. Push the first domino and watch as each domino falls and turns red. The chain will stop when it reaches a gap that is too wide. This gap will be marked "TOO FAR!" in red. The last fallen domino will be circled in green as the answer.
 ```
 
-Default: `distance < 70px × 0.9 = 63px`
+### Visual
 
-Normal spacing (30-45px) < 63px → Chain continues
-Gap spacing (90-120px) > 63px → Chain stops
-
-### Rendering
-
-- **Side view**: Shows dominos as vertical rectangles
-- **Falling animation**: Dominos rotate from 0° to 75° (tilted right)
-- **Pivot point**: Bottom-left corner stays on ground during fall
-
----
-
-## 🎥 Video Generation
-
-Ground truth videos show the complete chain reaction:
-
-| Phase | Duration | Description |
-|-------|----------|-------------|
-| 1. Initial | 15 frames | All dominos standing, PUSH indicator |
-| 2. Chain Reaction | ~6 frames/domino | Each domino tilts through 6 angles (0°→75°) |
-| 3. Measurement | 20 frames | Distance measurement shown at gap |
-| 4. Gap Reveal | 20 frames | "TOO FAR!" indicator appears |
-| 5. Answer | 30 frames | Final state with answer circled |
-
-- **Format**: MP4 with H.264 codec
-- **FPS**: 15 (configurable)
-- **Resolution**: 800×400 pixels
+<table>
+<tr>
+  <td align="center"><img src="samples/O-24_first_0.png" width="300"/></td>
+  <td align="center"><img src="samples/O-24_video_0.gif" width="300"/></td>
+  <td align="center"><img src="samples/O-24_final_0.png" width="300"/></td>
+</tr>
+<tr>
+  <td align="center"><b>Initial Frame</b><br/>Domino chain with varying spacing</td>
+  <td align="center"><b>Animation</b><br/>Dominos falling until gap is reached</td>
+  <td align="center"><b>Final Frame</b><br/>Last fallen domino circled, gap marked</td>
+</tr>
+</table>
 
 ---
 
-## 🧩 Task Difficulty
+## 📖 Task Description
 
-Difficulty can be adjusted by modifying spacing parameters:
+### Objective
 
-| Difficulty | Gap Visibility | Configuration |
-|------------|----------------|---------------|
-| Easy | Obvious gap | `gap_spacing_min=120, gap_spacing_max=150` |
-| Medium | Subtle gap | `gap_spacing_min=90, gap_spacing_max=120` (default) |
-| Hard | Very subtle | `gap_spacing_min=70, gap_spacing_max=90` |
+Identify which domino will be the last to fall in a chain when the chain reaction is stopped by a gap that is too wide for the falling domino to reach the next one.
 
-Additional difficulty factors:
-- More dominos = harder to track
-- Gap in middle = harder than at edges
-- Similar spacings = requires careful analysis
+### Task Setup
+
+- **Domino Chain**: Linear arrangement of 7-12 dominos in side view
+- **Variable Spacing**: Normal spacing (60-90 px) between most dominos
+- **Gap**: One gap with excessive spacing (180-240 px) that stops the chain
+- **Physics Threshold**: Domino can reach up to 90% of its height (126 px for 140 px tall domino)
+- **Visual Indicators**: Gap marked "TOO FAR!" in red, last fallen domino circled in green
+
+### Key Features
+
+- **Gap detection**: Tests understanding of physical reach limitations in domino chains
+- **Physics reasoning**: Requires calculating whether a falling domino can reach the next one
+- **Sequential simulation**: Dominos fall one by one until the gap is encountered
+- **Visual state change**: Fallen dominos turn from blue to red
+- **Clear answer marking**: Last fallen domino is highlighted with green circle
+- **Explicit gap labeling**: "TOO FAR!" text marks the problematic gap
+- **Variable chain length**: 7-12 dominos create different difficulty levels
 
 ---
 
-## 📚 References
+## 📦 Data Format
 
-- **Template Data Generator**: Base framework for synthetic task generation
-- **Domino Physics**: Simplified model based on reach distance
-- **PIL/Pillow**: Image rendering library
-- **OpenCV**: Video generation (optional dependency)
+```
+data/domino_chain_gap_analysis_task/
+├── domino_chain_gap_analysis_0000/
+│   ├── first_frame.png          # Initial state (all dominos standing)
+│   ├── final_frame.png          # Final state (last fallen domino marked)
+│   ├── prompt.txt               # Task instructions
+│   └── ground_truth.mp4         # Solution video (16 fps)
+├── domino_chain_gap_analysis_0001/
+│   └── ...
+```
+
+**File specifications**: Images are 1024×1024 PNG. Videos are MP4 at 16 fps, duration varies based on chain length.
+
+---
+
+## 🏷️ Tags
+
+`physics-simulation` `domino-effect` `gap-detection` `spatial-reasoning` `reach-analysis` `chain-reaction` `failure-point`
+
+---
