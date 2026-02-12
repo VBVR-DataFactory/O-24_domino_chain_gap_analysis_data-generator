@@ -72,9 +72,9 @@ Analyze the domino chain to find which domino is the last to fall. Push the firs
 
 <table>
 <tr>
-  <td align="center"><img src="samples/O-24_first_0.png" width="300"/></td>
-  <td align="center"><img src="samples/O-24_video_0.gif" width="300"/></td>
-  <td align="center"><img src="samples/O-24_final_0.png" width="300"/></td>
+  <td align="center"><img src="samples/O-24_first_0.png" width="250"/></td>
+  <td align="center"><img src="samples/O-24_video_0.gif" width="400"/></td>
+  <td align="center"><img src="samples/O-24_final_0.png" width="250"/></td>
 </tr>
 <tr>
   <td align="center"><b>Initial Frame</b><br/>Domino chain with varying spacing</td>
