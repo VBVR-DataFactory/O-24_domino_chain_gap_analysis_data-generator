@@ -201,14 +201,17 @@ class TaskGenerator(BaseGenerator):
         # Draw ground
         self._draw_ground(draw, visual_props)
 
-        # Draw dominos - fallen up to and including last_fallen_index, rest standing
+        # Draw dominos in two passes to avoid clipping issues:
+        # Pass 1: Draw all fallen dominos first (they should be behind standing ones)
         for i in range(task_data["num_dominos"]):
-            x = task_data["positions"][i]
             if i <= task_data["last_fallen_index"]:
-                # Fallen domino
+                x = task_data["positions"][i]
                 self._draw_domino_fallen(draw, x, i + 1, visual_props['fallen_domino_color'], visual_props)
-            else:
-                # Standing domino
+        
+        # Pass 2: Draw all standing dominos on top
+        for i in range(task_data["num_dominos"]):
+            if i > task_data["last_fallen_index"]:
+                x = task_data["positions"][i]
                 self._draw_domino_standing(draw, x, i + 1, visual_props['domino_color'], visual_props)
 
         # Draw gap indicator
