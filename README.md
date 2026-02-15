@@ -67,7 +67,6 @@ python examples/generate.py --num-samples 100 --output data/my_output
 ```
 Analyze the domino chain to find which domino is the last to fall. Push the first domino and watch as each domino falls and turns red. The chain will stop when it reaches a gap that is too wide. This gap will be marked "TOO FAR!" in red. The last fallen domino will be circled in green as the answer.
 ```
-
 ### Visual
 
 <table>
@@ -114,15 +113,14 @@ Identify which domino will be the last to fall in a chain when the chain reactio
 ## 📦 Data Format
 
 ```
-data/domino_chain_gap_analysis_task/
-├── domino_chain_gap_analysis_0000/
-│   ├── first_frame.png          # Initial state (all dominos standing)
-│   ├── final_frame.png          # Final state (last fallen domino marked)
-│   ├── prompt.txt               # Task instructions
-│   └── ground_truth.mp4         # Solution video (16 fps)
-├── domino_chain_gap_analysis_0001/
-│   └── ...
+data/questions/domino_chain_gap_analysis_task/domino_chain_gap_analysis_00000000/
+├── first_frame.png      # Initial state (all dominos standing)
+├── final_frame.png      # Final state (last fallen domino marked)
+├── prompt.txt           # Task instructions
+├── ground_truth.mp4     # Solution video (16 fps)
+└── question_metadata.json # Task metadata
 ```
+
 
 **File specifications**: Images are 1024×1024 PNG. Videos are MP4 at 16 fps, duration varies based on chain length.
 

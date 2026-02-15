@@ -11,7 +11,7 @@ import random
 import math
 import tempfile
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 from PIL import Image, ImageDraw, ImageFont
 
 from core import BaseGenerator, TaskPair, ImageRenderer
@@ -66,14 +66,64 @@ class TaskGenerator(BaseGenerator):
         # Select prompt
         prompt = get_prompt("default")
 
+        # Build objects metadata
+        objects = self._build_objects_metadata(task_data)
+        
+        # Build task_data with object-centric metadata
+        optimized_task_data = {
+            "gap_after": task_data["gap_after"],
+            "answer": task_data["answer"],
+            "last_fallen_index": task_data["last_fallen_index"],
+            "objects": objects
+        }
+        
+        metadata = self._build_metadata(task_id, optimized_task_data)
+        
+        
+        
         return TaskPair(
             task_id=task_id,
             domain=self.config.domain,
             prompt=prompt,
             first_image=first_image,
             final_image=final_image,
-            ground_truth_video=video_path
+            ground_truth_video=video_path,
+            metadata=metadata
         )
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  METADATA BUILDING
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def _build_objects_metadata(self, task_data: dict) -> List[Dict[str, Any]]:
+        """
+        Build objects metadata with all dominos as objects.
+        
+        Args:
+            task_data: Task data dictionary containing domino information
+        
+        Returns:
+            List of domino objects with their properties
+        """
+        objects = []
+        visual_props = task_data['visual_props']
+        ground_y = visual_props['ground_y']
+        
+        for i in range(task_data["num_dominos"]):
+            x = task_data["positions"][i]
+            is_fallen = i <= task_data["last_fallen_index"]
+            
+            objects.append({
+                "symbol": "domino",
+                "index": i + 1,  # 1-indexed for display
+                "center": [round(x, 2), round(ground_y - visual_props['domino_height'] / 2, 2)],
+                "position": round(x, 2),
+                "color": list(visual_props['domino_color'] if not is_fallen else visual_props['fallen_domino_color']),
+                "is_fallen": is_fallen,
+                "is_last_fallen": (i == task_data["last_fallen_index"])
+            })
+        
+        return objects
 
     # ══════════════════════════════════════════════════════════════════════════
     #  CHAIN GENERATION
