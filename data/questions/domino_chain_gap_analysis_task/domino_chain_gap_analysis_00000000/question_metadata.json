@@ -1,0 +1,178 @@
+{
+  "version": "1.0",
+  "task_id": "domino_chain_gap_analysis_00000000",
+  "generator": "domino_chain_gap_analysis",
+  "timestamp": "2026-02-15T14:19:42.450551",
+  "parameters": {
+    "gap_after": 7,
+    "answer": 8,
+    "last_fallen_index": 7,
+    "objects": [
+      {
+        "symbol": "domino",
+        "index": 1,
+        "center": [
+          180,
+          584.0
+        ],
+        "position": 180,
+        "color": [
+          231,
+          76,
+          60
+        ],
+        "is_fallen": true,
+        "is_last_fallen": false
+      },
+      {
+        "symbol": "domino",
+        "index": 2,
+        "center": [
+          265,
+          584.0
+        ],
+        "position": 265,
+        "color": [
+          231,
+          76,
+          60
+        ],
+        "is_fallen": true,
+        "is_last_fallen": false
+      },
+      {
+        "symbol": "domino",
+        "index": 3,
+        "center": [
+          350,
+          584.0
+        ],
+        "position": 350,
+        "color": [
+          231,
+          76,
+          60
+        ],
+        "is_fallen": true,
+        "is_last_fallen": false
+      },
+      {
+        "symbol": "domino",
+        "index": 4,
+        "center": [
+          415,
+          584.0
+        ],
+        "position": 415,
+        "color": [
+          231,
+          76,
+          60
+        ],
+        "is_fallen": true,
+        "is_last_fallen": false
+      },
+      {
+        "symbol": "domino",
+        "index": 5,
+        "center": [
+          500,
+          584.0
+        ],
+        "position": 500,
+        "color": [
+          231,
+          76,
+          60
+        ],
+        "is_fallen": true,
+        "is_last_fallen": false
+      },
+      {
+        "symbol": "domino",
+        "index": 6,
+        "center": [
+          568,
+          584.0
+        ],
+        "position": 568,
+        "color": [
+          231,
+          76,
+          60
+        ],
+        "is_fallen": true,
+        "is_last_fallen": false
+      },
+      {
+        "symbol": "domino",
+        "index": 7,
+        "center": [
+          639,
+          584.0
+        ],
+        "position": 639,
+        "color": [
+          231,
+          76,
+          60
+        ],
+        "is_fallen": true,
+        "is_last_fallen": false
+      },
+      {
+        "symbol": "domino",
+        "index": 8,
+        "center": [
+          713,
+          584.0
+        ],
+        "position": 713,
+        "color": [
+          231,
+          76,
+          60
+        ],
+        "is_fallen": true,
+        "is_last_fallen": true
+      },
+      {
+        "symbol": "domino",
+        "index": 9,
+        "center": [
+          893,
+          584.0
+        ],
+        "position": 893,
+        "color": [
+          40,
+          180,
+          99
+        ],
+        "is_fallen": false,
+        "is_last_fallen": false
+      },
+      {
+        "symbol": "domino",
+        "index": 10,
+        "center": [
+          966,
+          584.0
+        ],
+        "position": 966,
+        "color": [
+          40,
+          180,
+          99
+        ],
+        "is_fallen": false,
+        "is_last_fallen": false
+      }
+    ]
+  },
+  "param_hash": "ee202e9db0baca5a",
+  "generation": {
+    "seed": null,
+    "generator_version": "1.0"
+  }
+}

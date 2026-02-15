@@ -1,1 +1,0 @@
-Analyze the domino chain to find which domino is the last to fall. Push the first domino and watch as each domino falls and turns red. The chain will stop when it reaches a gap that is too wide. This gap will be marked "TOO FAR!" in red. The last fallen domino will be circled in green as the answer.
