@@ -12,7 +12,7 @@ Each sample pairs a **task** (first frame + prompt describing what needs to happ
 |----------|-------|
 | **Task ID** | O-24 |
 | **Task** | Domino Chain Gap Analysis |
-| **Category** | Physics Simulation/Gap Detection |
+| **Category** | Knowledge |
 | **Resolution** | 1024×1024 px |
 | **FPS** | 16 fps |
 | **Duration** | varies |
