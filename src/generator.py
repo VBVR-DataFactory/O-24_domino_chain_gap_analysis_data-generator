@@ -173,26 +173,36 @@ class TaskGenerator(BaseGenerator):
         visual_props = task_data['visual_props']
         num_dominos = task_data['num_dominos']
         gap_after = task_data['gap_after']
-        
-        # Generate spacings
-        spacings = []
-        # Keep centers far enough apart so fallen dominos do not overlap the next tile.
-        w = visual_props["domino_width"]
-        h = visual_props["domino_height"]
-        min_center_dist = int(w + h * math.sin(math.radians(75)) + 12)
 
+        # Generate spacings with explicit contact physics:
+        # normal spacing must be reachable, gap spacing must be unreachable.
+        max_trigger_spacing = self._max_trigger_spacing(visual_props)
+        normal_max_allowed = max(40, max_trigger_spacing - 6)
+        # Keep normal spacing tighter so collisions are visually believable.
+        normal_max_allowed = min(normal_max_allowed, int(visual_props["domino_height"] * 0.55))
+        normal_min_allowed = max(30, normal_max_allowed - 28)
+        gap_min_required = max_trigger_spacing + 22
+
+        spacings = []
         for i in range(num_dominos - 1):
             if i == gap_after:
-                # This is the gap - too far
+                # This is the gap - guaranteed too far for contact.
+                low = max(visual_props["gap_spacing_min"], gap_min_required)
+                high = max(visual_props["gap_spacing_max"], low + 18)
                 spacing = random.randint(
-                    max(visual_props["gap_spacing_min"], min_center_dist),
-                    max(visual_props["gap_spacing_max"], min_center_dist + 5),
+                    low,
+                    high,
                 )
             else:
-                # Normal spacing
+                # Normal spacings are reachable so chain can continue.
+                low = min(visual_props["normal_spacing_min"], normal_max_allowed)
+                high = min(visual_props["normal_spacing_max"], normal_max_allowed)
+                if high < low:
+                    low = normal_min_allowed
+                    high = normal_max_allowed
                 spacing = random.randint(
-                    max(visual_props["normal_spacing_min"], min_center_dist),
-                    max(visual_props["normal_spacing_max"], min_center_dist + 5),
+                    low,
+                    high,
                 )
             spacings.append(spacing)
 
@@ -204,19 +214,68 @@ class TaskGenerator(BaseGenerator):
             if i < len(spacings):
                 x += spacings[i]
 
-        # The answer is the domino index (1-indexed for display) that falls last
-        # Gap is after index gap_after (0-indexed), so last fallen = gap_after + 1 (1-indexed)
-        last_fallen_index = gap_after  # 0-indexed
+        # Simulate chain trigger physically: next domino falls only if spacing is reachable.
+        last_fallen_index = 0
+        for i, spacing in enumerate(spacings):
+            if spacing <= max_trigger_spacing:
+                last_fallen_index = i + 1
+            else:
+                break
         answer = last_fallen_index + 1  # 1-indexed for display
+        contact_angles = self._compute_contact_angles(spacings, visual_props)
+        rest_angles = self._compute_rest_angles(last_fallen_index, contact_angles)
 
         task_data.update({
             "positions": positions,
             "spacings": spacings,
             "answer": answer,  # 1-indexed (domino number)
             "last_fallen_index": last_fallen_index,  # 0-indexed
+            "contact_angles": contact_angles,
+            "rest_angles": rest_angles,
         })
         
         return task_data
+
+    def _max_trigger_spacing(self, visual_props: dict) -> int:
+        """
+        Maximum center-to-center spacing where a fallen domino still reaches the next one.
+        Reach model (rigid rectangle): max horizontal reach of top-front corner.
+        """
+        w = visual_props["domino_width"]
+        h = visual_props["domino_height"]
+        # Max of h*sin(theta) + w*cos(theta) over theta in [0, 90) is sqrt(h^2 + w^2).
+        return int(math.hypot(h, w))
+
+    def _compute_contact_angles(self, spacings: List[int], visual_props: dict) -> List[Optional[float]]:
+        """Angle (from vertical) where domino i first touches domino i+1."""
+        w = visual_props["domino_width"]
+        h = visual_props["domino_height"]
+        max_reach = math.hypot(h, w)
+        phase = math.atan2(w, h)  # h*sin(t) + w*cos(t) = R*sin(t + phase)
+
+        out: List[Optional[float]] = []
+        for spacing in spacings:
+            if spacing > max_reach:
+                out.append(None)
+                continue
+            ratio = spacing / max(max_reach, 1e-6)
+            ratio = max(0.0, min(1.0, ratio))
+            theta = math.asin(ratio) - phase
+            out.append(max(0.0, math.degrees(theta)))
+        return out
+
+    def _compute_rest_angles(self, last_fallen_index: int, contact_angles: List[Optional[float]]) -> List[float]:
+        """
+        Stable final tilt angles for fallen dominos.
+        Dominos keep falling after contact; use larger rest angles for natural settling.
+        """
+        rest: List[float] = []
+        for i in range(last_fallen_index + 1):
+            if i < last_fallen_index and contact_angles[i] is not None:
+                rest.append(max(50.0, min(74.0, contact_angles[i] + 20.0)))
+            else:
+                rest.append(75.0)
+        return rest
 
     # ══════════════════════════════════════════════════════════════════════════
     #  RENDERING
@@ -246,6 +305,9 @@ class TaskGenerator(BaseGenerator):
         visual_props = task_data['visual_props']
         img = Image.new('RGB', self.config.image_size, visual_props['background_color'])
         draw = ImageDraw.Draw(img)
+        final_state = self._simulate_domino_angles(task_data, max_frames=220)[-1]
+        final_angles = final_state["angles"]
+        final_xs = final_state["xs"]
 
         # Draw ground
         self._draw_ground(draw, visual_props)
@@ -254,14 +316,16 @@ class TaskGenerator(BaseGenerator):
         # Pass 1: Draw all fallen dominos first (they should be behind standing ones)
         for i in range(task_data["num_dominos"]):
             if i <= task_data["last_fallen_index"]:
-                x = task_data["positions"][i]
-                self._draw_domino_fallen(draw, x, i + 1, visual_props['fallen_domino_color'], visual_props)
+                x = final_xs[i]
+                self._draw_domino_at_angle(
+                    draw, x, i + 1, final_angles[i], visual_props['fallen_domino_color'], visual_props
+                )
         
         # Pass 2: Draw all standing dominos on top
         for i in range(task_data["num_dominos"]):
             if i > task_data["last_fallen_index"]:
-                x = task_data["positions"][i]
-                self._draw_domino_standing(draw, x, i + 1, visual_props['domino_color'], visual_props)
+                x = final_xs[i]
+                self._draw_domino_at_angle(draw, x, i + 1, final_angles[i], visual_props['domino_color'], visual_props)
 
         # Draw gap indicator
         gap_x1 = task_data["positions"][task_data["gap_after"]]
@@ -269,7 +333,7 @@ class TaskGenerator(BaseGenerator):
         self._draw_gap_indicator(draw, gap_x1, gap_x2, visual_props)
 
         # Circle the last fallen domino
-        last_x = task_data["positions"][task_data["last_fallen_index"]]
+        last_x = final_xs[task_data["last_fallen_index"]]
         self._draw_answer_circle(draw, last_x, task_data["answer"], visual_props)
 
         return img
@@ -324,36 +388,8 @@ class TaskGenerator(BaseGenerator):
         color: Tuple[int, int, int],
         visual_props: dict
     ) -> None:
-        """Draw a fallen domino (tilted to the right)."""
-        w = visual_props['domino_width']
-        h = visual_props['domino_height']
-        ground_y = visual_props['ground_y']
-
-        # Fallen domino tilted ~75 degrees to the right
-        angle = 75  # degrees from vertical
-        angle_rad = math.radians(angle)
-
-        # Base point (bottom-left corner stays on ground)
-        base_x = x - w // 2
-        base_y = ground_y
-
-        # Calculate corners of tilted rectangle
-        # The domino pivots from its bottom-left corner
-        dx = h * math.sin(angle_rad)
-        dy = h * math.cos(angle_rad)
-
-        # Four corners
-        p1 = (base_x, base_y)  # bottom-left
-        p2 = (base_x + dx, base_y - dy)  # top-left
-        p3 = (base_x + dx + w * math.cos(angle_rad), base_y - dy + w * math.sin(angle_rad))  # top-right
-        p4 = (base_x + w * math.cos(angle_rad), base_y + w * math.sin(angle_rad))  # bottom-right
-
-        # Keep fallen tile from dipping below the ground line
-        poly = [p1, p2, p3, p4]
-        max_y = max(pt[1] for pt in poly)
-        if max_y > ground_y:
-            lift = max_y - ground_y
-            poly = [(pt[0], pt[1] - lift) for pt in poly]
+        """Draw a fallen domino (tilted right, bottom edge on ground)."""
+        poly, _ = self._domino_polygon(x, 75, visual_props)
 
         # Draw as polygon
         draw.polygon(poly, fill=color, outline=(20, 20, 20))
@@ -510,7 +546,7 @@ class TaskGenerator(BaseGenerator):
         return str(result) if result else None
 
     def _create_animation_frames(self, task_data: dict) -> List[Image.Image]:
-        """Create animation frames for domino chain reaction."""
+        """Create animation frames using contact-triggered simplified domino physics."""
         frames = []
 
         # Phase 1: Hold initial state (reduced for 5-second target)
@@ -518,36 +554,19 @@ class TaskGenerator(BaseGenerator):
         for _ in range(10):  # Reduced from 15 to 10
             frames.append(initial_frame)
 
-        # Phase 2: Animate each domino falling up to the gap
-        # Each domino has multiple frames showing it tilting
-        fall_angles = [0, 15, 30, 45, 60, 75]  # Degrees from vertical
-
-        for domino_idx in range(task_data["last_fallen_index"] + 1):
-            # Animate this domino falling
-            for angle in fall_angles:
-                frame = self._render_animation_frame(task_data, domino_idx, angle)
-                frames.append(frame)
-
-            # Brief pause after each domino falls (removed extra pause for speed)
+        # Phase 2: Contact-driven chain simulation
+        snapshots = self._simulate_domino_angles(task_data, max_frames=220)
+        for state in snapshots:
+            frames.append(self._render_simulation_frame(task_data, state))
 
         # Phase 3: Show gap measurement / approaching gap
-        # Hold on the last fallen state (reduced)
-        last_fallen_frame = self._render_animation_frame(
-            task_data,
-            task_data["last_fallen_index"],
-            75,
-            show_measurement=True
-        )
+        settle_state = snapshots[-1]
+        last_fallen_frame = self._render_simulation_frame(task_data, settle_state, show_measurement=True)
         for _ in range(12):  # Reduced from 20 to 12
             frames.append(last_fallen_frame)
 
-        # Phase 4: Show "TOO FAR" indicator (reduced)
-        gap_frame = self._render_animation_frame(
-            task_data,
-            task_data["last_fallen_index"],
-            75,
-            show_gap_indicator=True
-        )
+        # Phase 4: Show gap indicator (reduced)
+        gap_frame = self._render_simulation_frame(task_data, settle_state, show_gap_indicator=True)
         for _ in range(12):  # Reduced from 20 to 12
             frames.append(gap_frame)
 
@@ -557,6 +576,151 @@ class TaskGenerator(BaseGenerator):
             frames.append(final_frame)
 
         return frames
+
+    def _simulate_domino_angles(self, task_data: dict, max_frames: int = 220) -> List[Dict[str, List[float]]]:
+        """
+        Simulate domino motion with a real rigid-body physics engine (pymunk).
+        Each domino is a non-deforming rectangle; collisions and gravity drive
+        chain propagation.
+        """
+        import pymunk
+
+        visual_props = task_data["visual_props"]
+        positions = task_data["positions"]
+        n = task_data["num_dominos"]
+        w = float(visual_props["domino_width"])
+        h = float(visual_props["domino_height"])
+
+        space = pymunk.Space()
+        space.gravity = (0.0, -3200.0)
+        space.damping = 0.999
+
+        # Ground as a static segment in physics world (y=0).
+        left = float(min(positions) - 250)
+        right = float(max(positions) + 350)
+        ground = pymunk.Segment(space.static_body, (left, 0.0), (right, 0.0), 2.0)
+        ground.friction = 1.0
+        ground.elasticity = 0.0
+        space.add(ground)
+
+        bodies: List[pymunk.Body] = []
+        mass = 2.2
+        for x in positions:
+            moment = pymunk.moment_for_box(mass, (w, h))
+            body = pymunk.Body(mass, moment)
+            body.position = (float(x), h / 2.0)
+            body.angle = 0.0
+            shape = pymunk.Poly.create_box(body, (w, h))
+            shape.friction = 0.88
+            shape.elasticity = 0.0
+            # Keep the domino foot on ground (realistic pivot, avoids unrealistic sliding/stacking).
+            pivot = pymunk.PivotJoint(
+                space.static_body,
+                body,
+                (float(x), 0.0),
+                (0.0, -h / 2.0),
+            )
+            pivot.collide_bodies = False
+            limiter = pymunk.RotaryLimitJoint(space.static_body, body, -math.radians(89.0), math.radians(2.0))
+            space.add(body, shape, pivot, limiter)
+            bodies.append(body)
+
+        # Kick the first domino near its top edge to the right.
+        if bodies:
+            bodies[0].apply_impulse_at_local_point((950.0, 0.0), (0.0, h * 0.45))
+
+        dt = 1.0 / 240.0
+        substeps = 6
+        snapshots: List[Dict[str, List[float]]] = []
+        settled_runs = 0
+
+        for _ in range(max_frames):
+            for _ in range(substeps):
+                space.step(dt)
+
+            angles: List[float] = []
+            total_omega = 0.0
+            total_speed = 0.0
+            for body in bodies:
+                # body.angle is CCW in a y-up world. Right-fall is negative angle.
+                deg_from_vertical = math.degrees(-body.angle)
+                deg_from_vertical = max(0.0, min(89.0, deg_from_vertical))
+                angles.append(deg_from_vertical)
+                total_omega += abs(body.angular_velocity)
+                total_speed += body.velocity.length
+
+            xs: List[float] = []
+            for body, angle in zip(bodies, angles):
+                pivot_x = float(body.position.x) - (h * 0.5) * math.sin(math.radians(angle))
+                xs.append(pivot_x)
+            snapshots.append({
+                "angles": angles,
+                "xs": xs,
+            })
+
+            # Stop once motion is nearly settled for multiple frames.
+            if total_omega < 0.22 and total_speed < 4.0:
+                settled_runs += 1
+                if settled_runs >= 12 and len(snapshots) > 35:
+                    break
+            else:
+                settled_runs = 0
+
+        if not snapshots:
+            snapshots = [{"angles": [0.0] * n, "xs": [float(x) for x in positions]}]
+
+        final_angles = snapshots[-1]["angles"]
+        fallen_threshold = 16.0
+        last_fallen_index = 0
+        for i, angle in enumerate(final_angles):
+            if angle >= fallen_threshold:
+                last_fallen_index = i
+            else:
+                break
+
+        task_data["last_fallen_index"] = last_fallen_index
+        task_data["answer"] = last_fallen_index + 1
+
+        return snapshots
+
+    def _render_simulation_frame(
+        self,
+        task_data: dict,
+        state: Dict[str, List[float]],
+        show_measurement: bool = False,
+        show_gap_indicator: bool = False,
+    ) -> Image.Image:
+        """Render one frame from current per-domino angles."""
+        visual_props = task_data['visual_props']
+        angles = state["angles"]
+        xs = state["xs"]
+        img = Image.new('RGB', self.config.image_size, visual_props['background_color'])
+        draw = ImageDraw.Draw(img)
+
+        self._draw_ground(draw, visual_props)
+
+        for i in range(task_data["num_dominos"]):
+            x = xs[i]
+            angle = angles[i]
+            is_fallen = i <= task_data["last_fallen_index"]
+            color = visual_props['fallen_domino_color'] if is_fallen and angle > 0.5 else visual_props['domino_color']
+            self._draw_domino_at_angle(draw, x, i + 1, angle, color, visual_props)
+
+        if show_measurement:
+            self._draw_distance_measurement(
+                draw,
+                task_data,
+                visual_props,
+                angles[task_data["last_fallen_index"]],
+                x_override=xs[task_data["gap_after"]],
+            )
+
+        if show_gap_indicator:
+            gap_x1 = task_data["positions"][task_data["gap_after"]]
+            gap_x2 = task_data["positions"][task_data["gap_after"] + 1]
+            self._draw_gap_indicator(draw, gap_x1, gap_x2, visual_props)
+
+        return img
 
     def _render_animation_frame(
         self,
@@ -603,7 +767,7 @@ class TaskGenerator(BaseGenerator):
     def _draw_domino_at_angle(
         self,
         draw: ImageDraw.Draw,
-        x: int,
+        x: float,
         number: int,
         angle: float,
         color: Tuple[int, int, int],
@@ -613,34 +777,9 @@ class TaskGenerator(BaseGenerator):
         if angle <= 0:
             self._draw_domino_standing(draw, x, number, color, visual_props)
             return
-        if angle >= 75:
-            self._draw_domino_fallen(draw, x, number, color, visual_props)
-            return
+        angle = min(89.0, angle)
 
-        w = visual_props['domino_width']
-        h = visual_props['domino_height']
-        ground_y = visual_props['ground_y']
-
-        angle_rad = math.radians(angle)
-
-        # Base point (bottom-left corner stays on ground)
-        base_x = x - w // 2
-        base_y = ground_y
-
-        # Calculate corners of tilted rectangle
-        dx = h * math.sin(angle_rad)
-        dy = h * math.cos(angle_rad)
-
-        p1 = (base_x, base_y)
-        p2 = (base_x + dx, base_y - dy)
-        p3 = (base_x + dx + w * math.cos(angle_rad), base_y - dy + w * math.sin(angle_rad))
-        p4 = (base_x + w * math.cos(angle_rad), base_y + w * math.sin(angle_rad))
-
-        poly = [p1, p2, p3, p4]
-        max_y = max(pt[1] for pt in poly)
-        if max_y > ground_y:
-            lift = max_y - ground_y
-            poly = [(pt[0], pt[1] - lift) for pt in poly]
+        poly, _ = self._domino_polygon(x, angle, visual_props)
         draw.polygon(poly, fill=color, outline=(20, 20, 20))
 
         # Draw number
@@ -653,15 +792,62 @@ class TaskGenerator(BaseGenerator):
         text_h = bbox[3] - bbox[1]
         draw.text((center_x - text_w // 2, center_y - text_h // 2), text, fill=(255, 255, 255), font=font)
 
-    def _draw_distance_measurement(self, draw: ImageDraw.Draw, task_data: dict, visual_props: dict) -> None:
+    def _domino_polygon(
+        self,
+        x: float,
+        angle_deg: float,
+        visual_props: dict,
+    ) -> Tuple[List[Tuple[float, float]], float]:
+        """
+        Build a domino polygon at a given angle from vertical.
+        Uses rigid-body rotation (no deformation), then lifts polygon so its lowest point
+        sits on the ground line to avoid visual suspension.
+        Returns (polygon_points, tip_x).
+        """
+        w = visual_props["domino_width"]
+        h = visual_props["domino_height"]
+        ground_y = visual_props["ground_y"]
+        angle = math.radians(angle_deg)
+
+        # Rotate rigid rectangle clockwise around bottom-center pivot (x, ground_y).
+        # Local standing coordinates:
+        #   bl(-w/2,0), tl(-w/2,-h), tr(w/2,-h), br(w/2,0)
+        def rot(lx: float, ly: float) -> Tuple[float, float]:
+            # In image space (x right, y down), clockwise-positive rotation:
+            # x' = x*cos(a) - y*sin(a), y' = x*sin(a) + y*cos(a)
+            xr = lx * math.cos(angle) - ly * math.sin(angle)
+            yr = lx * math.sin(angle) + ly * math.cos(angle)
+            return x + xr, ground_y + yr
+
+        p1 = rot(-w / 2.0, 0.0)   # bottom-left
+        p2 = rot(-w / 2.0, -h)    # top-left
+        p3 = rot(w / 2.0, -h)     # top-right
+        p4 = rot(w / 2.0, 0.0)    # bottom-right
+        poly = [p1, p2, p3, p4]
+
+        max_y = max(pt[1] for pt in poly)
+        if max_y > ground_y:
+            lift = max_y - ground_y
+            poly = [(px, py - lift) for (px, py) in poly]
+
+        tip_x = poly[2][0]
+        return poly, tip_x
+
+    def _draw_distance_measurement(
+        self,
+        draw: ImageDraw.Draw,
+        task_data: dict,
+        visual_props: dict,
+        angle_deg: float = 75.0,
+        x_override: Optional[float] = None,
+    ) -> None:
         """Draw distance measurement between last fallen and next domino."""
         gap_idx = task_data["gap_after"]
         x1 = task_data["positions"][gap_idx]
         x2 = task_data["positions"][gap_idx + 1]
 
         # For fallen domino, tip is further right
-        angle_rad = math.radians(75)
-        tip_x = x1 - visual_props['domino_width'] // 2 + visual_props['domino_height'] * math.sin(angle_rad)
+        _, tip_x = self._domino_polygon(x_override if x_override is not None else x1, angle_deg, visual_props)
 
         y = visual_props['ground_y'] - visual_props['domino_height'] // 2
 

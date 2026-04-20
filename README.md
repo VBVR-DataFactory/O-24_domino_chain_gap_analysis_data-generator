@@ -65,7 +65,7 @@ python examples/generate.py --num-samples 100 --output data/my_output
 ### Prompt
 
 ```
-Analyze the domino chain to find which domino is the last to fall. Push the first domino and watch as each domino falls and turns red. The chain will stop when it reaches a gap that is too wide. This gap will be marked "TOO FAR!" in red. The last fallen domino will be circled in green as the answer.
+Analyze the domino chain to find which domino is the last to fall. Push the first domino and watch as each domino falls and turns red. The chain stops at the gap where the spacing between two upright dominos is visibly wider than the others (shown with a red bracket between those two dominos). The last fallen domino is circled in green as the answer.
 ```
 ### Visual
 
@@ -96,7 +96,7 @@ Identify which domino will be the last to fall in a chain when the chain reactio
 - **Variable Spacing**: Normal spacing (60-90 px) between most dominos
 - **Gap**: One gap with excessive spacing (180-240 px) that stops the chain
 - **Physics Threshold**: Domino can reach up to 90% of its height (126 px for 140 px tall domino)
-- **Visual Indicators**: Gap marked "TOO FAR!" in red, last fallen domino circled in green
+- **Visual Indicators**: Gap highlighted by a red bracket, last fallen domino circled in green
 
 ### Key Features
 
@@ -105,7 +105,7 @@ Identify which domino will be the last to fall in a chain when the chain reactio
 - **Sequential simulation**: Dominos fall one by one until the gap is encountered
 - **Visual state change**: Fallen dominos turn from blue to red
 - **Clear answer marking**: Last fallen domino is highlighted with green circle
-- **Explicit gap labeling**: "TOO FAR!" text marks the problematic gap
+- **Clear gap cue**: A red bracket marks the problematic gap without extra on-frame text
 - **Variable chain length**: 7-12 dominos create different difficulty levels
 
 ---
