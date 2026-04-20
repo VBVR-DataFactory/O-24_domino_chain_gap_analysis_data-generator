@@ -176,18 +176,23 @@ class TaskGenerator(BaseGenerator):
         
         # Generate spacings
         spacings = []
+        # Keep centers far enough apart so fallen dominos do not overlap the next tile.
+        w = visual_props["domino_width"]
+        h = visual_props["domino_height"]
+        min_center_dist = int(w + h * math.sin(math.radians(75)) + 12)
+
         for i in range(num_dominos - 1):
             if i == gap_after:
                 # This is the gap - too far
                 spacing = random.randint(
-                    visual_props['gap_spacing_min'],
-                    visual_props['gap_spacing_max']
+                    max(visual_props["gap_spacing_min"], min_center_dist),
+                    max(visual_props["gap_spacing_max"], min_center_dist + 5),
                 )
             else:
                 # Normal spacing
                 spacing = random.randint(
-                    visual_props['normal_spacing_min'],
-                    visual_props['normal_spacing_max']
+                    max(visual_props["normal_spacing_min"], min_center_dist),
+                    max(visual_props["normal_spacing_max"], min_center_dist + 5),
                 )
             spacings.append(spacing)
 
@@ -234,12 +239,6 @@ class TaskGenerator(BaseGenerator):
         # Draw "PUSH" arrow at first domino
         self._draw_push_indicator(draw, task_data["positions"][0], visual_props)
 
-        # Draw "?" question marker
-        self._draw_question_marker(draw)
-
-        # Draw title
-        self._draw_title(draw, "Where does the chain stop?")
-
         return img
 
     def _render_final_state(self, task_data: dict) -> Image.Image:
@@ -272,9 +271,6 @@ class TaskGenerator(BaseGenerator):
         # Circle the last fallen domino
         last_x = task_data["positions"][task_data["last_fallen_index"]]
         self._draw_answer_circle(draw, last_x, task_data["answer"], visual_props)
-
-        # Draw answer title
-        self._draw_title(draw, f"Chain stopped at Domino #{task_data['answer']}")
 
         return img
 
@@ -352,12 +348,19 @@ class TaskGenerator(BaseGenerator):
         p3 = (base_x + dx + w * math.cos(angle_rad), base_y - dy + w * math.sin(angle_rad))  # top-right
         p4 = (base_x + w * math.cos(angle_rad), base_y + w * math.sin(angle_rad))  # bottom-right
 
+        # Keep fallen tile from dipping below the ground line
+        poly = [p1, p2, p3, p4]
+        max_y = max(pt[1] for pt in poly)
+        if max_y > ground_y:
+            lift = max_y - ground_y
+            poly = [(pt[0], pt[1] - lift) for pt in poly]
+
         # Draw as polygon
-        draw.polygon([p1, p2, p3, p4], fill=color, outline=(20, 20, 20))
+        draw.polygon(poly, fill=color, outline=(20, 20, 20))
 
         # Draw number at center of fallen domino
-        center_x = (p1[0] + p2[0] + p3[0] + p4[0]) / 4
-        center_y = (p1[1] + p2[1] + p3[1] + p4[1]) / 4
+        center_x = sum(pt[0] for pt in poly) / 4
+        center_y = sum(pt[1] for pt in poly) / 4
         font = self._get_font(28)
         text = str(number)
         bbox = draw.textbbox((0, 0), text, font=font)
@@ -447,21 +450,8 @@ class TaskGenerator(BaseGenerator):
         draw.line([(x1, bracket_top), (x1, bracket_bottom)], fill=self.config.gap_indicator_color, width=2)
         # Right bracket
         draw.line([(x2, bracket_top), (x2, bracket_bottom)], fill=self.config.gap_indicator_color, width=2)
-        # Connecting line
+        # Connecting line (no on-image caption; gap is visible from spacing + bracket)
         draw.line([(x1, y), (x2, y)], fill=self.config.gap_indicator_color, width=2)
-
-        # Draw "TOO FAR!" text
-        font = self._get_font(28)
-        text = "TOO FAR!"
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_w = bbox[2] - bbox[0]
-        center_x = (x1 + x2) // 2
-        draw.text(
-            (center_x - text_w // 2, y + 8),
-            text,
-            fill=self.config.gap_indicator_color,
-            font=font
-        )
 
     def _draw_answer_circle(self, draw: ImageDraw.Draw, x: int, answer: int, visual_props: dict) -> None:
         """Draw circle around the answer domino."""
@@ -608,14 +598,6 @@ class TaskGenerator(BaseGenerator):
             gap_x2 = task_data["positions"][task_data["gap_after"] + 1]
             self._draw_gap_indicator(draw, gap_x1, gap_x2, visual_props)
 
-        # Draw title based on state
-        if show_gap_indicator:
-            self._draw_title(draw, "Gap detected - Chain stops!")
-        elif show_measurement:
-            self._draw_title(draw, "Measuring distance to next domino...")
-        else:
-            self._draw_title(draw, "Chain reaction in progress...")
-
         return img
 
     def _draw_domino_at_angle(
@@ -654,11 +636,16 @@ class TaskGenerator(BaseGenerator):
         p3 = (base_x + dx + w * math.cos(angle_rad), base_y - dy + w * math.sin(angle_rad))
         p4 = (base_x + w * math.cos(angle_rad), base_y + w * math.sin(angle_rad))
 
-        draw.polygon([p1, p2, p3, p4], fill=color, outline=(20, 20, 20))
+        poly = [p1, p2, p3, p4]
+        max_y = max(pt[1] for pt in poly)
+        if max_y > ground_y:
+            lift = max_y - ground_y
+            poly = [(pt[0], pt[1] - lift) for pt in poly]
+        draw.polygon(poly, fill=color, outline=(20, 20, 20))
 
         # Draw number
-        center_x = (p1[0] + p2[0] + p3[0] + p4[0]) / 4
-        center_y = (p1[1] + p2[1] + p3[1] + p4[1]) / 4
+        center_x = sum(pt[0] for pt in poly) / 4
+        center_y = sum(pt[1] for pt in poly) / 4
         font = self._get_font(28)
         text = str(number)
         bbox = draw.textbbox((0, 0), text, font=font)
@@ -684,12 +671,3 @@ class TaskGenerator(BaseGenerator):
         # Draw end markers
         draw.line([(tip_x, y - 10), (tip_x, y + 10)], fill=(255, 165, 0), width=2)
         draw.line([(x2, y - 10), (x2, y + 10)], fill=(255, 165, 0), width=2)
-
-        # Draw distance text
-        distance = x2 - tip_x
-        font = self._get_font(12)
-        text = f"{distance}px"
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_w = bbox[2] - bbox[0]
-        center_x = (tip_x + x2) // 2
-        draw.text((center_x - text_w // 2, y - 25), text, fill=(255, 165, 0), font=font)
