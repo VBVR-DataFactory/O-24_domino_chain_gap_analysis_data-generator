@@ -327,14 +327,11 @@ class TaskGenerator(BaseGenerator):
                 x = final_xs[i]
                 self._draw_domino_at_angle(draw, x, i + 1, final_angles[i], visual_props['domino_color'], visual_props)
 
-        # Draw gap indicator
-        gap_x1 = task_data["positions"][task_data["gap_after"]]
-        gap_x2 = task_data["positions"][task_data["gap_after"] + 1]
-        self._draw_gap_indicator(draw, gap_x1, gap_x2, visual_props)
-
         # Circle the last fallen domino
-        last_x = final_xs[task_data["last_fallen_index"]]
-        self._draw_answer_circle(draw, last_x, task_data["answer"], visual_props)
+        last_idx = task_data["last_fallen_index"]
+        last_x = final_xs[last_idx]
+        last_angle = final_angles[last_idx]
+        self._draw_answer_circle(draw, last_x, last_angle, visual_props)
 
         return img
 
@@ -489,16 +486,20 @@ class TaskGenerator(BaseGenerator):
         # Connecting line (no on-image caption; gap is visible from spacing + bracket)
         draw.line([(x1, y), (x2, y)], fill=self.config.gap_indicator_color, width=2)
 
-    def _draw_answer_circle(self, draw: ImageDraw.Draw, x: int, answer: int, visual_props: dict) -> None:
-        """Draw circle around the answer domino."""
-        # Circle around the fallen domino area
-        center_y = visual_props['ground_y'] - 20
-        radius = 45
+    def _draw_answer_circle(self, draw: ImageDraw.Draw, x: float, angle_deg: float, visual_props: dict) -> None:
+        """Draw an enclosing highlight around the full last fallen domino."""
+        poly, _ = self._domino_polygon(x, angle_deg, visual_props)
+        min_x = min(px for px, _ in poly)
+        max_x = max(px for px, _ in poly)
+        min_y = min(py for _, py in poly)
+        max_y = max(py for _, py in poly)
 
+        # Padding keeps the full domino body comfortably inside the circle.
+        pad = max(14, visual_props["domino_width"] // 3)
         draw.ellipse(
-            [x - radius, center_y - radius, x + radius + 30, center_y + radius],
+            [min_x - pad, min_y - pad, max_x + pad, max_y + pad],
             outline=self.config.highlight_color,
-            width=4
+            width=4,
         )
 
     def _draw_title(self, draw: ImageDraw.Draw, text: str) -> None:
@@ -559,18 +560,13 @@ class TaskGenerator(BaseGenerator):
         for state in snapshots:
             frames.append(self._render_simulation_frame(task_data, state))
 
-        # Phase 3: Show gap measurement / approaching gap
+        # Phase 3: Hold settled state briefly before final answer.
         settle_state = snapshots[-1]
-        last_fallen_frame = self._render_simulation_frame(task_data, settle_state, show_measurement=True)
-        for _ in range(12):  # Reduced from 20 to 12
-            frames.append(last_fallen_frame)
+        settled_frame = self._render_simulation_frame(task_data, settle_state)
+        for _ in range(10):
+            frames.append(settled_frame)
 
-        # Phase 4: Show gap indicator (reduced)
-        gap_frame = self._render_simulation_frame(task_data, settle_state, show_gap_indicator=True)
-        for _ in range(12):  # Reduced from 20 to 12
-            frames.append(gap_frame)
-
-        # Phase 5: Show final answer (reduced)
+        # Phase 4: Show final answer (reduced)
         final_frame = self._render_final_state(task_data)
         for _ in range(20):  # Reduced from 30 to 20
             frames.append(final_frame)
