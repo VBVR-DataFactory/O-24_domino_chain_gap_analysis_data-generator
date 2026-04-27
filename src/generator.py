@@ -327,12 +327,6 @@ class TaskGenerator(BaseGenerator):
                 x = final_xs[i]
                 self._draw_domino_at_angle(draw, x, i + 1, final_angles[i], visual_props['domino_color'], visual_props)
 
-        # Circle the last fallen domino
-        last_idx = task_data["last_fallen_index"]
-        last_x = final_xs[last_idx]
-        last_angle = final_angles[last_idx]
-        self._draw_answer_circle(draw, last_x, last_angle, visual_props)
-
         return img
 
     def _draw_ground(self, draw: ImageDraw.Draw, visual_props: dict) -> None:
@@ -560,16 +554,11 @@ class TaskGenerator(BaseGenerator):
         for state in snapshots:
             frames.append(self._render_simulation_frame(task_data, state))
 
-        # Phase 3: Hold settled state briefly before final answer.
+        # Phase 3: End shortly after the chain settles.
         settle_state = snapshots[-1]
         settled_frame = self._render_simulation_frame(task_data, settle_state)
-        for _ in range(10):
+        for _ in range(4):
             frames.append(settled_frame)
-
-        # Phase 4: Show final answer (reduced)
-        final_frame = self._render_final_state(task_data)
-        for _ in range(20):  # Reduced from 30 to 20
-            frames.append(final_frame)
 
         return frames
 

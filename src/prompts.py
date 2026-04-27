@@ -16,8 +16,7 @@ PROMPT_TEMPLATE = (
     "Analyze the domino chain to find which domino is the last to fall. "
     "Push the first domino and watch as each domino falls and turns red. "
     "The chain stops at the gap where the spacing between two upright dominos "
-    "is visibly wider than the others. "
-    "The last fallen domino is circled in green as the answer."
+    "is visibly wider than the others."
 )
 
 PROMPT_PARAMS = {
